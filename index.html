@@ -57,6 +57,34 @@
   .tl-dest { font-weight: 600; display: flex; align-items: center; gap: 6px; }
   .chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
   .warn { background: var(--soft-orange); color: #9c5e08; font-size: 12px; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; }
+  /* calendar */
+  .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-head .cal-title { font-size: 18px; font-weight: 600; color: var(--navy); }
+  .cal-nav { display: flex; gap: 6px; }
+  .cal-nav button { border: 1px solid #e2e8f0; background: #fff; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 14px; font-family: inherit; }
+  .cal-nav button:hover { background: #f8fafc; }
+  .cal-grid { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 24px; }
+  .cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); background: var(--lightblue); }
+  .cal-dow div { padding: 8px 6px; font-size: 12px; font-weight: 600; color: var(--navy); text-align: center; }
+  .cal-weeks { display: flex; flex-direction: column; }
+  .cal-week { display: grid; grid-template-columns: repeat(7, 1fr); border-top: 1px solid #eef2f6; min-height: 92px; }
+  .cal-cell { border-right: 1px solid #eef2f6; padding: 4px; position: relative; overflow: hidden; }
+  .cal-cell:last-child { border-right: none; }
+  .cal-cell.dim { background: #fafbfc; }
+  .cal-cell.today { background: #fff7ec; }
+  .cal-daynum { font-size: 12px; color: #64748b; margin-bottom: 2px; }
+  .cal-cell.today .cal-daynum { color: var(--orange); font-weight: 700; }
+  .cal-bar { font-size: 10px; line-height: 1.3; color: #fff; padding: 1px 5px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+  .cal-bar.mid { border-radius: 0; }
+  .cal-bar.start { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .cal-bar.end { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  @media (max-width: 640px) { .cal-week { min-height: 64px; } .cal-bar { font-size: 8px; padding: 1px 3px; } }
+  /* budget */
+  .budget-summary { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 20px; }
+  .budget-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; padding: 6px 0; }
+  .budget-row.total { border-top: 1px solid #e2e8f0; margin-top: 6px; padding-top: 10px; font-weight: 600; color: var(--navy); }
+  .budget-bar-track { height: 8px; background: #eef2f6; border-radius: 999px; overflow: hidden; margin-top: 4px; }
+  .budget-bar-fill { height: 100%; background: var(--orange); }
   .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; z-index: 50; padding: 16px; }
   .modal { background: #fff; border-radius: 16px; max-width: 460px; width: 100%; margin: auto; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
   .modal-head { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: #fff; }
@@ -121,13 +149,19 @@ const DEFAULT_MEMBERS = [
 ];
 
 const uid = () => Math.random().toString(36).slice(2, 9);
-const esc = (s) => (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const esc = (s) => (s || "").toString().replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const inr = (n) => { const v = Number(n) || 0; return "₹" + v.toLocaleString("en-IN"); };
+const toDate = (s) => s ? new Date(s + "T00:00:00") : null;
+const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 let state = { members: DEFAULT_MEMBERS, trips: [] };
 let view = "mindmap";
 let expanded = {};
 let openModal = null;   // { type: 'trip'|'member', ... }
 let openDrawer = null;  // tripId
+let calMonth = new Date().getMonth();
+let calYear = new Date().getFullYear();
 let db = null, docRef = null, configOk = false;
 
 // ---- Firebase init ----
@@ -256,14 +290,18 @@ function renderMindMap() {
 
 function renderTimeline() {
   const sorted = [...state.trips].sort((a, b) => (a.startDate || "9999").localeCompare(b.startDate || "9999"));
-  if (sorted.length === 0) return `<div style="text-align:center;padding:60px;color:#94a3b8">No trips scheduled yet. Switch to Mind Map to add some.</div>`;
+  const mName = (id) => state.members.find((m) => m.id === id)?.name || "—";
+
+  // overlaps
   const overlaps = new Set();
   for (let i = 0; i < sorted.length; i++) for (let j = i + 1; j < sorted.length; j++) {
     const a = sorted[i], b = sorted[j];
     if (a.startDate && a.endDate && b.startDate && b.endDate && a.startDate <= b.endDate && b.startDate <= a.endDate) { overlaps.add(a.id); overlaps.add(b.id); }
   }
-  const mName = (id) => state.members.find((m) => m.id === id)?.name || "—";
-  return `
+
+  return renderCalendar() + renderBudget() + `
+    <h3 style="font-size:16px;color:var(--navy);margin:8px 0 12px">All trips</h3>
+    ${sorted.length === 0 ? `<div style="text-align:center;padding:40px;color:#94a3b8">No trips scheduled yet. Switch to Mind Map to add some.</div>` : ""}
     ${overlaps.size > 0 ? `<div class="warn">⚠ ${overlaps.size} trips have overlapping dates — highlighted below.</div>` : ""}
     ${sorted.map((t) => { const c = colorFor(t.memberId); return `
       <div class="tl-item ${overlaps.has(t.id) ? "overlap" : ""}" style="border-color:${c.soft}" data-trip="${t.id}">
@@ -274,9 +312,91 @@ function renderTimeline() {
             <span class="chip" style="background:${c.soft};color:${c.text}">${esc(mName(t.memberId))}</span>
           </div>
           ${t.seminar ? `<div style="font-size:14px;color:#475569;margin-top:2px">${esc(t.seminar)}</div>` : ""}
-          <div style="font-size:12px;color:#94a3b8;margin-top:4px">▤ ${fmtDate(t.startDate)}${t.endDate && t.endDate !== t.startDate ? " – " + fmtDate(t.endDate) : ""}</div>
+          <div style="font-size:12px;color:#94a3b8;margin-top:4px">▤ ${fmtDate(t.startDate)}${t.endDate && t.endDate !== t.startDate ? " – " + fmtDate(t.endDate) : ""}${t.budget ? " · " + inr(t.budget) : ""}</div>
         </div>
       </div>`; }).join("")}`;
+}
+
+const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function renderCalendar() {
+  const first = new Date(calYear, calMonth, 1);
+  const startDow = first.getDay();
+  const gridStart = new Date(calYear, calMonth, 1 - startDow);
+  const today = new Date();
+
+  // build 6 weeks (42 cells)
+  let weeksHtml = "";
+  for (let w = 0; w < 6; w++) {
+    let cells = "";
+    for (let d = 0; d < 7; d++) {
+      const cellDate = new Date(gridStart);
+      cellDate.setDate(gridStart.getDate() + w * 7 + d);
+      const inMonth = cellDate.getMonth() === calMonth;
+      const isToday = sameDay(cellDate, today);
+      // trips active on this day
+      const bars = state.trips.filter((t) => {
+        const s = toDate(t.startDate); const e = toDate(t.endDate) || s;
+        if (!s) return false;
+        return cellDate >= s && cellDate <= e;
+      }).map((t) => {
+        const c = colorFor(t.memberId);
+        const s = toDate(t.startDate); const e = toDate(t.endDate) || s;
+        let pos = "mid";
+        if (sameDay(cellDate, s) && sameDay(cellDate, e)) pos = "";
+        else if (sameDay(cellDate, s)) pos = "start";
+        else if (sameDay(cellDate, e)) pos = "end";
+        const label = (pos === "start" || pos === "") ? esc(t.destination || "Trip") : "&nbsp;";
+        return `<div class="cal-bar ${pos}" style="background:${c.bg}" data-trip="${t.id}" title="${esc(t.destination)} — ${esc(state.members.find(m=>m.id===t.memberId)?.name||"")}">${label}</div>`;
+      }).join("");
+      cells += `<div class="cal-cell ${inMonth ? "" : "dim"} ${isToday ? "today" : ""}"><div class="cal-daynum">${cellDate.getDate()}</div>${bars}</div>`;
+    }
+    weeksHtml += `<div class="cal-week">${cells}</div>`;
+    // stop early if next week is fully in next month
+    const probe = new Date(gridStart); probe.setDate(gridStart.getDate() + (w + 1) * 7);
+    if (probe.getMonth() !== calMonth && w >= 4) break;
+  }
+
+  return `
+    <div class="cal-head">
+      <div class="cal-title">${MONTHS[calMonth]} ${calYear}</div>
+      <div class="cal-nav">
+        <button data-cal="prev">‹ Prev</button>
+        <button data-cal="today">Today</button>
+        <button data-cal="next">Next ›</button>
+      </div>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-dow">${DOW.map((d) => `<div>${d}</div>`).join("")}</div>
+      <div class="cal-weeks">${weeksHtml}</div>
+    </div>`;
+}
+
+function renderBudget() {
+  const totalBudget = state.trips.reduce((s, t) => s + (Number(t.budget) || 0), 0);
+  const totalSpent = state.trips.reduce((s, t) => s + (Number(t.spent) || 0), 0);
+  if (totalBudget === 0 && totalSpent === 0) return "";
+  const pct = totalBudget > 0 ? Math.min(100, Math.round((totalSpent / totalBudget) * 100)) : 0;
+  const perMember = state.members.map((m) => {
+    const b = state.trips.filter((t) => t.memberId === m.id).reduce((s, t) => s + (Number(t.budget) || 0), 0);
+    const sp = state.trips.filter((t) => t.memberId === m.id).reduce((s, t) => s + (Number(t.spent) || 0), 0);
+    return { m, b, sp };
+  }).filter((x) => x.b > 0 || x.sp > 0);
+
+  return `
+    <div class="budget-summary">
+      <div style="font-size:16px;font-weight:600;color:var(--navy);margin-bottom:10px">Budget overview</div>
+      ${perMember.map(({ m, b, sp }) => { const c = colorFor(m.id); return `
+        <div class="budget-row">
+          <span style="display:flex;align-items:center;gap:8px"><span class="swatch" style="background:${c.bg}"></span>${esc(m.name)}</span>
+          <span>${inr(b)}${sp > 0 ? ` <span style="color:#94a3b8">· spent ${inr(sp)}</span>` : ""}</span>
+        </div>`; }).join("")}
+      <div class="budget-row total"><span>Team total (tentative)</span><span>${inr(totalBudget)}</span></div>
+      ${totalSpent > 0 ? `
+        <div class="budget-row"><span style="color:#64748b">Spent so far</span><span>${inr(totalSpent)} · ${pct}% utilized</span></div>
+        <div class="budget-bar-track"><div class="budget-bar-fill" style="width:${pct}%"></div></div>` : ""}
+    </div>`;
 }
 
 function renderModal() {
@@ -302,6 +422,10 @@ function renderModal() {
       <div class="field"><label>Seminar / Event name</label><input id="f-seminar" value="${esc(t.seminar || "")}" placeholder="e.g. EU Regulations &amp; Global Trade Conference" /></div>
       <div class="field"><label>Venue</label><input id="f-venue" value="${esc(t.venue || "")}" placeholder="e.g. Quorum, Two Horizon Centre" /></div>
       <div class="field"><label>Time</label><input id="f-time" value="${esc(t.time || "")}" placeholder="e.g. 9:00 AM – 5:00 PM" /></div>
+      <div class="row2">
+        <div class="field"><label>Tentative budget (₹)</label><input id="f-budget" type="number" value="${esc(t.budget || "")}" placeholder="e.g. 50000" /></div>
+        <div class="field"><label>Actual spent (₹)</label><input id="f-spent" type="number" value="${esc(t.spent || "")}" placeholder="optional" /></div>
+      </div>
       <div class="field"><label>Topics covered</label><textarea id="f-topics" rows="2" placeholder="e.g. CSDDD, CSRD, CBAM, EUDR">${esc(t.topics || "")}</textarea></div>
       <div class="field"><label>Key contact</label><input id="f-contact" value="${esc(t.contact || "")}" placeholder="Name / phone / email" /></div>
       <div class="field"><label>Notes</label><textarea id="f-notes" rows="2">${esc(t.notes || "")}</textarea></div>
@@ -327,7 +451,7 @@ function renderModal() {
     div.querySelector("#save-trip").onclick = () => {
       const g = (id) => div.querySelector("#f-" + id).value;
       if (!g("destination").trim()) return;
-      saveTrip({ ...(m.trip || {}), memberId: m.memberId, destination: g("destination"), startDate: g("startDate"), endDate: g("endDate"), seminar: g("seminar"), venue: g("venue"), time: g("time"), topics: g("topics"), contact: g("contact"), notes: g("notes") });
+      saveTrip({ ...(m.trip || {}), memberId: m.memberId, destination: g("destination"), startDate: g("startDate"), endDate: g("endDate"), seminar: g("seminar"), venue: g("venue"), time: g("time"), budget: g("budget"), spent: g("spent"), topics: g("topics"), contact: g("contact"), notes: g("notes") });
       div.remove();
     };
   }
@@ -353,6 +477,8 @@ function renderDrawer() {
         ${f("Seminar / Event", t.seminar)}
         ${f("Venue", t.venue)}
         ${f("Time", t.time)}
+        ${t.budget ? f("Tentative budget", inr(t.budget)) : ""}
+        ${t.spent ? f("Actual spent", inr(t.spent)) : ""}
         ${f("Topics covered", t.topics)}
         ${f("Key contact", t.contact)}
         ${f("Notes", t.notes)}
@@ -380,7 +506,16 @@ function bind() {
   document.querySelectorAll("[data-edit-member]").forEach((b) => b.onclick = (e) => { e.stopPropagation(); const mem = state.members.find((m) => m.id === b.dataset.editMember); openModal = { type: "member", title: "Edit member", member: mem }; render(); });
   document.querySelectorAll("[data-del-member]").forEach((b) => b.onclick = (e) => { e.stopPropagation(); deleteMember(b.dataset.delMember); });
   document.querySelectorAll("[data-add-trip]").forEach((b) => b.onclick = (e) => { e.stopPropagation(); const mid = b.dataset.addTrip; openModal = { type: "trip", title: "Add trip · " + (state.members.find((m) => m.id === mid)?.name || ""), memberId: mid }; render(); });
-  document.querySelectorAll("[data-trip]").forEach((b) => b.onclick = () => { openDrawer = b.dataset.trip; render(); });
+  document.querySelectorAll("[data-trip]").forEach((b) => b.onclick = (e) => { e.stopPropagation(); openDrawer = b.dataset.trip; render(); });
+
+  // calendar nav
+  document.querySelectorAll("[data-cal]").forEach((b) => b.onclick = () => {
+    const a = b.dataset.cal;
+    if (a === "today") { const n = new Date(); calMonth = n.getMonth(); calYear = n.getFullYear(); }
+    else if (a === "prev") { calMonth--; if (calMonth < 0) { calMonth = 11; calYear--; } }
+    else if (a === "next") { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } }
+    render();
+  });
 }
 
 initFirebase();
