@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Team Travel & Seminar Hub</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #012353; --orange: #E8931A; --gold: #CDAD7D;
+    --steel: #8A97A8; --lightblue: #E8ECF2; --soft-orange: #FCEFD9;
+  }
+  body { font-family: Calibri, system-ui, -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; }
+  .header { background: var(--navy); color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 20px; }
+  .header .sub { font-size: 12px; color: #cbd5e1; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .dot { width: 26px; height: 26px; border-radius: 6px; background: var(--orange); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--navy); }
+  .toggle { display: flex; border: 1px solid rgba(255,255,255,.2); border-radius: 8px; overflow: hidden; }
+  .toggle button { padding: 7px 14px; font-size: 14px; background: transparent; color: #fff; border: none; cursor: pointer; }
+  .toggle button.active { background: #fff; color: #0f172a; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px; }
+  .bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .muted { color: #64748b; font-size: 14px; }
+  .btn { border: none; cursor: pointer; border-radius: 8px; padding: 8px 14px; font-size: 14px; font-family: inherit; }
+  .btn-orange { background: var(--orange); color: #fff; }
+  .btn-navy { background: var(--navy); color: #fff; }
+  .btn-ghost { background: #fff; border: 1px solid #e2e8f0; color: #475569; }
+  .btn-danger { background: #fff; border: 1px solid #fecaca; color: #dc2626; }
+  .grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 700px) { .grid { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 1000px) { .grid { grid-template-columns: 1fr 1fr 1fr; } }
+  .center-node { display: flex; justify-content: center; margin-bottom: 24px; }
+  .center-node .pill { background: var(--navy); color: #fff; font-weight: bold; font-size: 18px; padding: 12px 24px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,.15); display: flex; gap: 8px; align-items: center; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .card-head { padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; }
+  .card-head .name { font-weight: 600; }
+  .card-head .role { font-size: 12px; color: #64748b; }
+  .swatch { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .icon-btn { background: transparent; border: none; cursor: pointer; padding: 4px; border-radius: 4px; color: #64748b; font-size: 13px; }
+  .icon-btn:hover { background: rgba(0,0,0,.06); }
+  .card-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .trip { width: 100%; text-align: left; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; cursor: pointer; background: #fff; }
+  .trip:hover { box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+  .trip .t-dest { font-weight: 500; font-size: 14px; display: flex; align-items: center; gap: 6px; }
+  .trip .t-sem { font-size: 12px; color: #475569; margin-top: 2px; }
+  .trip .t-date { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+  .add-trip { width: 100%; padding: 8px; border: 1px dashed var(--steel); border-radius: 8px; background: transparent; color: #64748b; font-size: 13px; cursor: pointer; }
+  .add-trip:hover { background: #f8fafc; }
+  .empty { font-size: 12px; color: #94a3b8; font-style: italic; padding: 8px 4px; }
+  .tl-item { display: flex; gap: 12px; background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; cursor: pointer; margin-bottom: 10px; align-items: stretch; }
+  .tl-item:hover { box-shadow: 0 2px 6px rgba(0,0,0,.08); }
+  .tl-item.overlap { box-shadow: 0 0 0 2px var(--orange); }
+  .tl-bar { width: 6px; border-radius: 4px; flex-shrink: 0; }
+  .tl-main { flex: 1; min-width: 0; }
+  .tl-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .tl-dest { font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+  .warn { background: var(--soft-orange); color: #9c5e08; font-size: 12px; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; z-index: 50; padding: 16px; }
+  .modal { background: #fff; border-radius: 16px; max-width: 460px; width: 100%; margin: auto; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+  .modal-head { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: #fff; }
+  .modal-head h3 { color: var(--navy); font-size: 17px; }
+  .modal-body { padding: 20px; }
+  .drawer-wrap { position: fixed; inset: 0; background: rgba(0,0,0,.3); display: flex; justify-content: flex-end; z-index: 50; }
+  .drawer { width: 100%; max-width: 440px; background: #fff; height: 100%; overflow-y: auto; box-shadow: -10px 0 30px rgba(0,0,0,.2); }
+  .drawer-head { padding: 16px 20px; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+  .field { margin-bottom: 14px; }
+  .field label { font-size: 12px; color: #64748b; display: block; margin-bottom: 4px; }
+  .field input, .field textarea { width: 100%; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: inherit; }
+  .field input:focus, .field textarea:focus { outline: none; border-color: var(--steel); box-shadow: 0 0 0 2px rgba(138,151,168,.3); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .detail-field { margin-bottom: 14px; }
+  .detail-field .dl { font-size: 12px; color: #94a3b8; margin-bottom: 2px; }
+  .detail-field .dv { font-size: 14px; color: #334155; white-space: pre-wrap; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 20px; }
+  .modal-actions .btn { flex: 1; }
+  .status { font-size: 12px; color: #cbd5e1; }
+  .config-warn { background: #fee2e2; color: #991b1b; padding: 16px 24px; font-size: 14px; line-height: 1.5; }
+  .config-warn code { background: rgba(0,0,0,.08); padding: 1px 5px; border-radius: 4px; }
+  .chevron { transition: transform .2s; }
+  .chevron.open { transform: rotate(90deg); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="module">
+// ============================================================
+//  STEP 1 — PASTE YOUR FIREBASE CONFIG BELOW
+//  (from Firebase Console -> Project Settings -> Your apps)
+// ============================================================
+const firebaseConfig = {
+  apiKey: "PASTE_HERE",
+  authDomain: "PASTE_HERE",
+  projectId: "PASTE_HERE",
+  storageBucket: "PASTE_HERE",
+  messagingSenderId: "PASTE_HERE",
+  appId: "PASTE_HERE"
+};
+// ============================================================
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getFirestore, doc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const MEMBER_COLORS = [
+  { bg: "#012353", soft: "#E8ECF2", text: "#012353" },
+  { bg: "#E8931A", soft: "#FCEFD9", text: "#9c5e08" },
+  { bg: "#2563eb", soft: "#dbeafe", text: "#1e40af" },
+  { bg: "#16a34a", soft: "#dcfce7", text: "#15803d" },
+  { bg: "#9333ea", soft: "#f3e8ff", text: "#7e22ce" },
+  { bg: "#dc2626", soft: "#fee2e2", text: "#b91c1c" },
+];
+
+const DEFAULT_MEMBERS = [
+  { id: "m1", name: "Indeep Madan", role: "Team Member" },
+  { id: "m2", name: "Sumit Munjal", role: "Team Member" },
+  { id: "m3", name: "Jack Clisby", role: "Team Member" },
+  { id: "m4", name: "Sahil Bangia", role: "Team Member" },
+  { id: "m5", name: "Harshit Mehta", role: "Team Member" },
+];
+
+const uid = () => Math.random().toString(36).slice(2, 9);
+const esc = (s) => (s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+let state = { members: DEFAULT_MEMBERS, trips: [] };
+let view = "mindmap";
+let expanded = {};
+let openModal = null;   // { type: 'trip'|'member', ... }
+let openDrawer = null;  // tripId
+let db = null, docRef = null, configOk = false;
+
+// ---- Firebase init ----
+function initFirebase() {
+  if (firebaseConfig.apiKey === "PASTE_HERE") { configOk = false; return; }
+  try {
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    docRef = doc(db, "teamTravel", "shared");
+    configOk = true;
+    onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        state = { members: d.members?.length ? d.members : DEFAULT_MEMBERS, trips: d.trips || [] };
+      } else {
+        setDoc(docRef, state);
+      }
+      render();
+    }, (err) => { console.error(err); });
+  } catch (e) { console.error(e); configOk = false; }
+}
+
+async function save() {
+  if (!configOk) return;
+  try { await setDoc(docRef, state); } catch (e) { console.error(e); }
+}
+
+const colorFor = (memberId) => {
+  const idx = state.members.findIndex((m) => m.id === memberId);
+  return MEMBER_COLORS[(idx < 0 ? 0 : idx) % MEMBER_COLORS.length];
+};
+const tripsFor = (memberId) => state.trips.filter((t) => t.memberId === memberId);
+const fmtDate = (d) => { if (!d) return ""; try { return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); } catch { return d; } };
+
+// ---- Mutations ----
+function saveMember(data) {
+  if (data.id) state.members = state.members.map((m) => m.id === data.id ? { ...m, ...data } : m);
+  else state.members = [...state.members, { ...data, id: uid() }];
+  save(); openModal = null; render();
+}
+function deleteMember(id) {
+  if (!confirm("Remove this member and all their trips?")) return;
+  state.members = state.members.filter((m) => m.id !== id);
+  state.trips = state.trips.filter((t) => t.memberId !== id);
+  save(); render();
+}
+function saveTrip(data) {
+  if (data.id) state.trips = state.trips.map((t) => t.id === data.id ? { ...t, ...data } : t);
+  else state.trips = [...state.trips, { ...data, id: uid() }];
+  save(); openModal = null; render();
+}
+function deleteTrip(id) {
+  if (!confirm("Delete this trip?")) return;
+  state.trips = state.trips.filter((t) => t.id !== id);
+  save(); openDrawer = null; render();
+}
+
+// ---- Render ----
+function render() {
+  const root = document.getElementById("root");
+  root.innerHTML = `
+    <div class="header">
+      <div class="brand">
+        <div class="dot">K</div>
+        <div>
+          <h1>Team Travel &amp; Seminar Hub</h1>
+          <div class="sub">${configOk ? "Live shared planner · synced across the team" : "⚠ Firebase not configured"}</div>
+        </div>
+      </div>
+      <div class="toggle">
+        <button class="${view === "mindmap" ? "active" : ""}" data-view="mindmap">◯ Mind Map</button>
+        <button class="${view === "calendar" ? "active" : ""}" data-view="calendar">▦ Timeline</button>
+      </div>
+    </div>
+    ${!configOk ? `<div class="config-warn">Firebase isn't set up yet. Open this file and paste your <code>firebaseConfig</code> into the marked block near the top of the script. Until then, data won't save or sync.</div>` : ""}
+    <div class="wrap">
+      <div class="bar">
+        <div class="muted">${state.members.length} members · ${state.trips.length} trips</div>
+        <button class="btn btn-orange" id="add-member">+ Add member</button>
+      </div>
+      <div id="content"></div>
+    </div>
+  `;
+  document.getElementById("content").innerHTML = view === "mindmap" ? renderMindMap() : renderTimeline();
+  bind();
+  if (openModal) renderModal();
+  if (openDrawer) renderDrawer();
+}
+
+function renderMindMap() {
+  return `
+    <div class="center-node"><div class="pill">◇ Team</div></div>
+    <div class="grid">
+      ${state.members.map((m) => {
+        const c = colorFor(m.id); const mt = tripsFor(m.id); const open = expanded[m.id] !== false;
+        return `
+        <div class="card" style="border-color:${c.soft}">
+          <div class="card-head" style="background:${c.soft}" data-toggle="${m.id}">
+            <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
+              <span class="swatch" style="background:${c.bg}"></span>
+              <div style="min-width:0">
+                <div class="name" style="color:${c.text}">${esc(m.name)}</div>
+                <div class="role">${esc(m.role || "Team Member")}</div>
+              </div>
+              <span class="chevron ${open ? "open" : ""}" style="color:${c.text}">›</span>
+            </div>
+            <div style="display:flex;gap:2px" data-stop="1">
+              <button class="icon-btn" data-edit-member="${m.id}">✎</button>
+              <button class="icon-btn" data-del-member="${m.id}">🗑</button>
+            </div>
+          </div>
+          ${open ? `<div class="card-body">
+            ${mt.length === 0 ? `<div class="empty">No trips yet</div>` : ""}
+            ${mt.map((t) => `
+              <button class="trip" style="border-color:${c.soft}" data-trip="${t.id}">
+                <div class="t-dest" style="color:${c.text}">◉ ${esc(t.destination || "Untitled")}</div>
+                ${t.seminar ? `<div class="t-sem">${esc(t.seminar)}</div>` : ""}
+                ${(t.startDate || t.endDate) ? `<div class="t-date">▤ ${fmtDate(t.startDate)}${t.endDate && t.endDate !== t.startDate ? " – " + fmtDate(t.endDate) : ""}</div>` : ""}
+              </button>`).join("")}
+            <button class="add-trip" style="border-color:${c.bg}" data-add-trip="${m.id}">+ Add trip</button>
+          </div>` : ""}
+        </div>`;
+      }).join("")}
+    </div>`;
+}
+
+function renderTimeline() {
+  const sorted = [...state.trips].sort((a, b) => (a.startDate || "9999").localeCompare(b.startDate || "9999"));
+  if (sorted.length === 0) return `<div style="text-align:center;padding:60px;color:#94a3b8">No trips scheduled yet. Switch to Mind Map to add some.</div>`;
+  const overlaps = new Set();
+  for (let i = 0; i < sorted.length; i++) for (let j = i + 1; j < sorted.length; j++) {
+    const a = sorted[i], b = sorted[j];
+    if (a.startDate && a.endDate && b.startDate && b.endDate && a.startDate <= b.endDate && b.startDate <= a.endDate) { overlaps.add(a.id); overlaps.add(b.id); }
+  }
+  const mName = (id) => state.members.find((m) => m.id === id)?.name || "—";
+  return `
+    ${overlaps.size > 0 ? `<div class="warn">⚠ ${overlaps.size} trips have overlapping dates — highlighted below.</div>` : ""}
+    ${sorted.map((t) => { const c = colorFor(t.memberId); return `
+      <div class="tl-item ${overlaps.has(t.id) ? "overlap" : ""}" style="border-color:${c.soft}" data-trip="${t.id}">
+        <div class="tl-bar" style="background:${c.bg}"></div>
+        <div class="tl-main">
+          <div class="tl-top">
+            <span class="tl-dest" style="color:${c.text}">◉ ${esc(t.destination || "Untitled")}</span>
+            <span class="chip" style="background:${c.soft};color:${c.text}">${esc(mName(t.memberId))}</span>
+          </div>
+          ${t.seminar ? `<div style="font-size:14px;color:#475569;margin-top:2px">${esc(t.seminar)}</div>` : ""}
+          <div style="font-size:12px;color:#94a3b8;margin-top:4px">▤ ${fmtDate(t.startDate)}${t.endDate && t.endDate !== t.startDate ? " – " + fmtDate(t.endDate) : ""}</div>
+        </div>
+      </div>`; }).join("")}`;
+}
+
+function renderModal() {
+  const m = openModal;
+  let bodyHtml = "";
+  if (m.type === "member") {
+    const mem = m.member || {};
+    bodyHtml = `
+      <div class="field"><label>Name *</label><input id="f-name" value="${esc(mem.name || "")}" placeholder="Full name" /></div>
+      <div class="field"><label>Role</label><input id="f-role" value="${esc(mem.role || "")}" placeholder="e.g. Type Approval Engineer" /></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button class="btn btn-navy" id="save-member">Save</button>
+      </div>`;
+  } else {
+    const t = m.trip || {};
+    bodyHtml = `
+      <div class="field"><label>Destination *</label><input id="f-destination" value="${esc(t.destination || "")}" placeholder="e.g. Gurugram, India" /></div>
+      <div class="row2">
+        <div class="field"><label>Start date</label><input id="f-startDate" type="date" value="${esc(t.startDate || "")}" /></div>
+        <div class="field"><label>End date</label><input id="f-endDate" type="date" value="${esc(t.endDate || "")}" /></div>
+      </div>
+      <div class="field"><label>Seminar / Event name</label><input id="f-seminar" value="${esc(t.seminar || "")}" placeholder="e.g. EU Regulations &amp; Global Trade Conference" /></div>
+      <div class="field"><label>Venue</label><input id="f-venue" value="${esc(t.venue || "")}" placeholder="e.g. Quorum, Two Horizon Centre" /></div>
+      <div class="field"><label>Time</label><input id="f-time" value="${esc(t.time || "")}" placeholder="e.g. 9:00 AM – 5:00 PM" /></div>
+      <div class="field"><label>Topics covered</label><textarea id="f-topics" rows="2" placeholder="e.g. CSDDD, CSRD, CBAM, EUDR">${esc(t.topics || "")}</textarea></div>
+      <div class="field"><label>Key contact</label><input id="f-contact" value="${esc(t.contact || "")}" placeholder="Name / phone / email" /></div>
+      <div class="field"><label>Notes</label><textarea id="f-notes" rows="2">${esc(t.notes || "")}</textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" data-close>Cancel</button>
+        <button class="btn btn-orange" id="save-trip">Save trip</button>
+      </div>`;
+  }
+  const div = document.createElement("div");
+  div.className = "overlay"; div.id = "modal-overlay";
+  div.innerHTML = `<div class="modal"><div class="modal-head"><h3>${esc(m.title)}</h3><button class="icon-btn" data-close>✕</button></div><div class="modal-body">${bodyHtml}</div></div>`;
+  document.body.appendChild(div);
+
+  div.addEventListener("click", (e) => { if (e.target === div || e.target.closest("[data-close]")) { openModal = null; div.remove(); } });
+  if (m.type === "member") {
+    div.querySelector("#save-member").onclick = () => {
+      const name = div.querySelector("#f-name").value.trim();
+      if (!name) return;
+      saveMember({ ...(m.member || {}), name, role: div.querySelector("#f-role").value.trim() });
+      div.remove();
+    };
+  } else {
+    div.querySelector("#save-trip").onclick = () => {
+      const g = (id) => div.querySelector("#f-" + id).value;
+      if (!g("destination").trim()) return;
+      saveTrip({ ...(m.trip || {}), memberId: m.memberId, destination: g("destination"), startDate: g("startDate"), endDate: g("endDate"), seminar: g("seminar"), venue: g("venue"), time: g("time"), topics: g("topics"), contact: g("contact"), notes: g("notes") });
+      div.remove();
+    };
+  }
+}
+
+function renderDrawer() {
+  const t = state.trips.find((x) => x.id === openDrawer);
+  if (!t) { openDrawer = null; return; }
+  const c = colorFor(t.memberId);
+  const mem = state.members.find((m) => m.id === t.memberId);
+  const f = (label, val) => val ? `<div class="detail-field"><div class="dl">${label}</div><div class="dv">${esc(val)}</div></div>` : "";
+  const div = document.createElement("div");
+  div.className = "drawer-wrap"; div.id = "drawer-wrap";
+  div.innerHTML = `
+    <div class="drawer">
+      <div class="drawer-head" style="background:${c.bg}">
+        <div style="font-weight:600;display:flex;align-items:center;gap:8px">◉ ${esc(t.destination || "Trip details")}</div>
+        <button class="icon-btn" style="color:#fff" data-close>✕</button>
+      </div>
+      <div style="padding:20px">
+        <div class="detail-field"><div class="dl">Traveler</div><div class="dv" style="color:${c.text};font-weight:500">${esc(mem?.name || "")}</div></div>
+        ${(t.startDate || t.endDate) ? f("Travel dates", fmtDate(t.startDate) + (t.endDate && t.endDate !== t.startDate ? " – " + fmtDate(t.endDate) : "")) : ""}
+        ${f("Seminar / Event", t.seminar)}
+        ${f("Venue", t.venue)}
+        ${f("Time", t.time)}
+        ${f("Topics covered", t.topics)}
+        ${f("Key contact", t.contact)}
+        ${f("Notes", t.notes)}
+        <div class="modal-actions" style="border-top:1px solid #e2e8f0;padding-top:14px">
+          <button class="btn btn-navy" id="edit-trip">✎ Edit</button>
+          <button class="btn btn-danger" id="del-trip">🗑 Delete</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(div);
+  div.addEventListener("click", (e) => { if (e.target === div || e.target.closest("[data-close]")) { openDrawer = null; div.remove(); } });
+  div.querySelector("#edit-trip").onclick = () => { openModal = { type: "trip", title: "Edit trip · " + (mem?.name || ""), memberId: t.memberId, trip: t }; openDrawer = null; div.remove(); renderModal(); };
+  div.querySelector("#del-trip").onclick = () => { deleteTrip(t.id); div.remove(); };
+}
+
+function bind() {
+  document.querySelectorAll("[data-view]").forEach((b) => b.onclick = () => { view = b.dataset.view; render(); });
+  const am = document.getElementById("add-member");
+  if (am) am.onclick = () => { openModal = { type: "member", title: "Add member" }; render(); };
+
+  document.querySelectorAll("[data-toggle]").forEach((el) => el.onclick = (e) => {
+    if (e.target.closest("[data-stop]")) return;
+    const id = el.dataset.toggle; expanded[id] = expanded[id] === false ? true : false; render();
+  });
+  document.querySelectorAll("[data-edit-member]").forEach((b) => b.onclick = (e) => { e.stopPropagation(); const mem = state.members.find((m) => m.id === b.dataset.editMember); openModal = { type: "member", title: "Edit member", member: mem }; render(); });
+  document.querySelectorAll("[data-del-member]").forEach((b) => b.onclick = (e) => { e.stopPropagation(); deleteMember(b.dataset.delMember); });
+  document.querySelectorAll("[data-add-trip]").forEach((b) => b.onclick = (e) => { e.stopPropagation(); const mid = b.dataset.addTrip; openModal = { type: "trip", title: "Add trip · " + (state.members.find((m) => m.id === mid)?.name || ""), memberId: mid }; render(); });
+  document.querySelectorAll("[data-trip]").forEach((b) => b.onclick = () => { openDrawer = b.dataset.trip; render(); });
+}
+
+initFirebase();
+render();
+</script>
+</body>
+</html>
