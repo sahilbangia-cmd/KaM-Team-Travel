@@ -85,6 +85,9 @@
   .budget-row.total { border-top: 1px solid #e2e8f0; margin-top: 6px; padding-top: 10px; font-weight: 600; color: var(--navy); }
   .budget-bar-track { height: 8px; background: #eef2f6; border-radius: 999px; overflow: hidden; margin-top: 4px; }
   .budget-bar-fill { height: 100%; background: var(--orange); }
+  .pick { border: 1px solid #e2e8f0; background: #fff; border-radius: 999px; padding: 6px 14px; font-size: 13px; font-family: inherit; cursor: pointer; color: #475569; }
+  .pick:hover { background: #f8fafc; }
+  .pick-on { border-color: transparent; }
   .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); display: flex; z-index: 50; padding: 16px; }
   .modal { background: #fff; border-radius: 16px; max-width: 460px; width: 100%; margin: auto; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
   .modal-head { padding: 14px 20px; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; background: #fff; }
@@ -162,6 +165,7 @@ let openModal = null;   // { type: 'trip'|'member', ... }
 let openDrawer = null;  // tripId
 let calMonth = new Date().getMonth();
 let calYear = new Date().getFullYear();
+let calFilter = "all"; // "all" or a memberId
 let db = null, docRef = null, configOk = false;
 
 // ---- Firebase init ----
@@ -289,19 +293,35 @@ function renderMindMap() {
 }
 
 function renderTimeline() {
-  const sorted = [...state.trips].sort((a, b) => (a.startDate || "9999").localeCompare(b.startDate || "9999"));
+  // ensure filter still valid
+  if (calFilter !== "all" && !state.members.find((m) => m.id === calFilter)) calFilter = "all";
+
+  const visible = calFilter === "all" ? state.trips : state.trips.filter((t) => t.memberId === calFilter);
+  const sorted = [...visible].sort((a, b) => (a.startDate || "9999").localeCompare(b.startDate || "9999"));
   const mName = (id) => state.members.find((m) => m.id === id)?.name || "—";
 
-  // overlaps
+  // overlaps (only meaningful in "all")
   const overlaps = new Set();
-  for (let i = 0; i < sorted.length; i++) for (let j = i + 1; j < sorted.length; j++) {
-    const a = sorted[i], b = sorted[j];
-    if (a.startDate && a.endDate && b.startDate && b.endDate && a.startDate <= b.endDate && b.startDate <= a.endDate) { overlaps.add(a.id); overlaps.add(b.id); }
+  if (calFilter === "all") {
+    for (let i = 0; i < sorted.length; i++) for (let j = i + 1; j < sorted.length; j++) {
+      const a = sorted[i], b = sorted[j];
+      if (a.startDate && a.endDate && b.startDate && b.endDate && a.startDate <= b.endDate && b.startDate <= a.endDate) { overlaps.add(a.id); overlaps.add(b.id); }
+    }
   }
 
-  return renderCalendar() + renderBudget() + `
-    <h3 style="font-size:16px;color:var(--navy);margin:8px 0 12px">All trips</h3>
-    ${sorted.length === 0 ? `<div style="text-align:center;padding:40px;color:#94a3b8">No trips scheduled yet. Switch to Mind Map to add some.</div>` : ""}
+  const picker = `
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+      <button class="pick ${calFilter === "all" ? "pick-on" : ""}" data-pick="all" style="${calFilter === "all" ? "background:var(--navy);color:#fff" : ""}">All</button>
+      ${state.members.map((m) => { const c = colorFor(m.id); const on = calFilter === m.id;
+        return `<button class="pick ${on ? "pick-on" : ""}" data-pick="${m.id}" style="${on ? `background:${c.bg};color:#fff` : `border-color:${c.soft};color:${c.text}`}">
+          <span class="swatch" style="background:${on ? "#fff" : c.bg};display:inline-block;margin-right:6px;vertical-align:middle"></span>${esc(m.name)}</button>`; }).join("")}
+    </div>`;
+
+  const heading = calFilter === "all" ? "All trips" : esc(mName(calFilter)) + "'s trips";
+
+  return picker + renderCalendar(visible) + renderBudget(visible) + `
+    <h3 style="font-size:16px;color:var(--navy);margin:8px 0 12px">${heading}</h3>
+    ${sorted.length === 0 ? `<div style="text-align:center;padding:40px;color:#94a3b8">No trips${calFilter === "all" ? " scheduled yet" : " for this member"}.</div>` : ""}
     ${overlaps.size > 0 ? `<div class="warn">⚠ ${overlaps.size} trips have overlapping dates — highlighted below.</div>` : ""}
     ${sorted.map((t) => { const c = colorFor(t.memberId); return `
       <div class="tl-item ${overlaps.has(t.id) ? "overlap" : ""}" style="border-color:${c.soft}" data-trip="${t.id}">
@@ -320,7 +340,8 @@ function renderTimeline() {
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function renderCalendar() {
+function renderCalendar(tripsList) {
+  const trips = tripsList || state.trips;
   const first = new Date(calYear, calMonth, 1);
   const startDow = first.getDay();
   const gridStart = new Date(calYear, calMonth, 1 - startDow);
@@ -336,7 +357,7 @@ function renderCalendar() {
       const inMonth = cellDate.getMonth() === calMonth;
       const isToday = sameDay(cellDate, today);
       // trips active on this day
-      const bars = state.trips.filter((t) => {
+      const bars = trips.filter((t) => {
         const s = toDate(t.startDate); const e = toDate(t.endDate) || s;
         if (!s) return false;
         return cellDate >= s && cellDate <= e;
@@ -373,14 +394,17 @@ function renderCalendar() {
     </div>`;
 }
 
-function renderBudget() {
-  const totalBudget = state.trips.reduce((s, t) => s + (Number(t.budget) || 0), 0);
-  const totalSpent = state.trips.reduce((s, t) => s + (Number(t.spent) || 0), 0);
+function renderBudget(tripsList) {
+  const trips = tripsList || state.trips;
+  const single = trips !== state.trips && calFilter !== "all";
+  const totalBudget = trips.reduce((s, t) => s + (Number(t.budget) || 0), 0);
+  const totalSpent = trips.reduce((s, t) => s + (Number(t.spent) || 0), 0);
   if (totalBudget === 0 && totalSpent === 0) return "";
   const pct = totalBudget > 0 ? Math.min(100, Math.round((totalSpent / totalBudget) * 100)) : 0;
-  const perMember = state.members.map((m) => {
-    const b = state.trips.filter((t) => t.memberId === m.id).reduce((s, t) => s + (Number(t.budget) || 0), 0);
-    const sp = state.trips.filter((t) => t.memberId === m.id).reduce((s, t) => s + (Number(t.spent) || 0), 0);
+  const membersToShow = single ? state.members.filter((m) => m.id === calFilter) : state.members;
+  const perMember = membersToShow.map((m) => {
+    const b = trips.filter((t) => t.memberId === m.id).reduce((s, t) => s + (Number(t.budget) || 0), 0);
+    const sp = trips.filter((t) => t.memberId === m.id).reduce((s, t) => s + (Number(t.spent) || 0), 0);
     return { m, b, sp };
   }).filter((x) => x.b > 0 || x.sp > 0);
 
@@ -392,7 +416,7 @@ function renderBudget() {
           <span style="display:flex;align-items:center;gap:8px"><span class="swatch" style="background:${c.bg}"></span>${esc(m.name)}</span>
           <span>${inr(b)}${sp > 0 ? ` <span style="color:#94a3b8">· spent ${inr(sp)}</span>` : ""}</span>
         </div>`; }).join("")}
-      <div class="budget-row total"><span>Team total (tentative)</span><span>${inr(totalBudget)}</span></div>
+      <div class="budget-row total"><span>${single ? "Total (tentative)" : "Team total (tentative)"}</span><span>${inr(totalBudget)}</span></div>
       ${totalSpent > 0 ? `
         <div class="budget-row"><span style="color:#64748b">Spent so far</span><span>${inr(totalSpent)} · ${pct}% utilized</span></div>
         <div class="budget-bar-track"><div class="budget-bar-fill" style="width:${pct}%"></div></div>` : ""}
@@ -516,6 +540,9 @@ function bind() {
     else if (a === "next") { calMonth++; if (calMonth > 11) { calMonth = 0; calYear++; } }
     render();
   });
+
+  // member picker
+  document.querySelectorAll("[data-pick]").forEach((b) => b.onclick = () => { calFilter = b.dataset.pick; render(); });
 }
 
 initFirebase();
